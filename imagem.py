@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (
 class MainWindow(QMainWindow):
     image_label: QLabel
     scroll_area: QScrollArea
+    scroll_step: int = 30
 
     def __init__(self):
         super().__init__()
@@ -57,11 +58,51 @@ class MainWindow(QMainWindow):
     # Event overrides
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
+
+        if QApplication.keyboardModifiers() == Qt.ControlModifier:
+            match event.key():
+                case Qt.Key_N:
+                    self.statusBar().setHidden(not self.statusBar().isHidden())
+                case _:
+                    super().keyPressEvent(event)
+            return
+
         match event.key():
+            case Qt.Key_H | Qt.Key_Left:
+                self.scroll_area.horizontalScrollBar().setValue(
+                    self.scroll_area.horizontalScrollBar().value()
+                    - self.scroll_step
+                )
+            case Qt.Key_J | Qt.Key_Down:
+                self.scroll_area.verticalScrollBar().setValue(
+                    self.scroll_area.verticalScrollBar().value()
+                    + self.scroll_step
+                )
+            case Qt.Key_K | Qt.Key_Up:
+                self.scroll_area.verticalScrollBar().setValue(
+                    self.scroll_area.verticalScrollBar().value()
+                    - self.scroll_step
+                )
+            case Qt.Key_L | Qt.Key_Right:
+                self.scroll_area.horizontalScrollBar().setValue(
+                    self.scroll_area.horizontalScrollBar().value()
+                    + self.scroll_step
+                )
+
             case Qt.Key_O:
                 path: str = self.file_dialog_path()
                 if path:
                     self.open_image(path)
+
+            case Qt.Key_F11:
+                if not self.isFullScreen():
+                    self.showFullScreen()
+                else:
+                    self.showNormal()
+
+            case Qt.Key_Q:
+                QApplication.quit()
+
             case _:
                 super().keyPressEvent(event)
 
