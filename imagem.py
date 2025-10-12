@@ -3,8 +3,8 @@
 import sys
 import os
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap, QKeyEvent
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QPixmap, QKeyEvent, QWheelEvent
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, QScrollArea, QFileDialog
 )
@@ -31,9 +31,13 @@ class Window(QMainWindow):
 
         self.statusBar().showMessage('[No image]')
 
+        self.zoom_label = QLabel('')
+        self.statusBar().addPermanentWidget(self.zoom_label)
+
         # Properties
 
         self.pixmap = QPixmap()
+        self.zoom: float = 1.0
 
         self.folder_path = ''
         self.folder_files: list[str] = []
@@ -42,6 +46,10 @@ class Window(QMainWindow):
         self.SUPPORTED_EXTS = {'.gif', '.jpeg', '.jpg', '.png', '.svg'}
 
         self.SCROLL_STEP = 30
+
+        self.MAX_ZOOM: float = 5.0
+        self.ZOOM_IN_FACTOR: float = 1.25
+        self.ZOOM_OUT_FACTOR: float = 0.8
 
     def change_current_file(self, index_increment: int) -> None:
         if not self.folder_files or self.file_index == -1:
@@ -54,6 +62,18 @@ class Window(QMainWindow):
                 self.folder_files[self.file_index]
             )
             self.load_pixmap_from_file(file_path)
+
+    def fit_zoom_to_height(self) -> None:
+        viewport_height = self.scroll_area.viewport().height()
+        pixmap_height = self.pixmap.height()
+        if pixmap_height > 0:
+            self.set_zoom(viewport_height / pixmap_height)
+
+    def fit_zoom_to_width(self) -> None:
+        viewport_width = self.scroll_area.viewport().width()
+        pixmap_width = self.pixmap.width()
+        if pixmap_width > 0:
+            self.set_zoom(viewport_width / pixmap_width)
 
     def file_dialog_path(self) -> str:
         path, _ = QFileDialog.getOpenFileName(
@@ -77,6 +97,9 @@ class Window(QMainWindow):
         if self.pixmap.isNull():
             return
         self.update_pixmap_label()
+
+        self.set_zoom(1.0)
+        self.update_zoom_label()
 
         self.setWindowTitle(os.path.basename(file_path))
         self.statusBar().showMessage(os.path.abspath(file_path))
@@ -112,10 +135,62 @@ class Window(QMainWindow):
         self.folder_path = folder_path
         self.file_index = self.folder_files.index(file)
 
+    def set_zoom(self, zoom: float) -> None:
+        if not self.pixmap:
+            return
+
+        if zoom > self.MAX_ZOOM:
+            return
+
+        if QSize.isEmpty(self.pixmap.size() * zoom):
+            return
+
+        hbar = self.scroll_area.horizontalScrollBar()
+        vbar = self.scroll_area.verticalScrollBar()
+
+        old_hval = hbar.value()
+        old_vval = vbar.value()
+
+        old_pixmap_size = self.pixmap_label.pixmap().size()
+        if old_pixmap_size.isEmpty():
+            return
+
+        viewport = self.scroll_area.viewport()
+
+        center_point = viewport.rect().center()
+
+        rel_x: float = (old_hval + center_point.x()) / old_pixmap_size.width()
+        rel_y: float = (old_vval + center_point.y()) / old_pixmap_size.height()
+
+        self.zoom = zoom
+        self.update_pixmap_label()
+        self.update_zoom_label()
+
+        new_pixmap_size = self.pixmap_label.pixmap().size()
+
+        new_hval: float = rel_x * new_pixmap_size.width() - center_point.x()
+        new_vval: float = rel_y * new_pixmap_size.height() - center_point.y()
+
+        hbar.setValue(int(new_hval))
+        vbar.setValue(int(new_vval))
+
     def update_pixmap_label(self) -> None:
         if self.pixmap:
-            self.pixmap_label.setPixmap(self.pixmap)
+            new_size = self.zoom * self.pixmap.size()
+            scaled_pixmap = self.pixmap.scaled(
+                new_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            self.pixmap_label.setPixmap(scaled_pixmap)
         self.pixmap_label.adjustSize()
+
+    def update_zoom_label(self) -> None:
+        self.zoom_label.setText(f'{int(self.zoom * 100)}%')
+
+    def zoom_in(self) -> None:
+        self.set_zoom(self.zoom * self.ZOOM_IN_FACTOR)
+
+    def zoom_out(self) -> None:
+        self.set_zoom(self.zoom * self.ZOOM_OUT_FACTOR)
 
     # -------------------------------------------------------------------------
     # Event overrides
@@ -165,6 +240,18 @@ class Window(QMainWindow):
                     + self.SCROLL_STEP
                 )
 
+            case Qt.Key_Plus:
+                self.zoom_in()
+            case Qt.Key_Minus:
+                self.zoom_out()
+            case Qt.Key_Equal:
+                self.set_zoom(1.0)
+
+            case Qt.Key_A:
+                self.fit_zoom_to_height()
+            case Qt.Key_S:
+                self.fit_zoom_to_width()
+
             case Qt.Key_O:
                 path = self.file_dialog_path()
                 if path:
@@ -181,6 +268,15 @@ class Window(QMainWindow):
 
             case _:
                 super().keyPressEvent(event)
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        if QApplication.keyboardModifiers() == Qt.ControlModifier:
+            if event.angleDelta().y() > 0:
+                self.zoom_in()
+            else:
+                self.zoom_out()
+        else:
+            super().wheelEvent(event)
 
 
 if __name__ == '__main__':
