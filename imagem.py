@@ -6,7 +6,16 @@ import os
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QPixmap, QKeyEvent, QWheelEvent, QTransform
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QLabel, QScrollArea, QFileDialog
+    QApplication,
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
 )
 
 
@@ -62,6 +71,63 @@ class Window(QMainWindow):
                 self.folder_files[self.file_index]
             )
             self.load_pixmap_from_file(file_path)
+
+    def delete_file(self):
+        if self.file_index == -1 or not self.folder_files:
+            return
+
+        file = self.folder_files[self.file_index]
+        file_path = os.path.join(self.folder_path, file)
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle('Delete Image?')
+        dialog.setModal(True)
+
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel(f'Are you sure you want to delete:\n\n{file}'))
+
+        btn_layout = QHBoxLayout()
+        btn_yes = QPushButton('(Y)es')
+        btn_no = QPushButton('(N)o')
+        btn_layout.addWidget(btn_yes)
+        btn_layout.addWidget(btn_no)
+        layout.addLayout(btn_layout)
+
+        def dialog_keypress(event: QKeyEvent) -> None:
+            match event.key():
+                case Qt.Key_Y:
+                    dialog.done(QDialog.Accepted)
+                case Qt.Key_N | Qt.Key_Escape:
+                    dialog.done(QDialog.Rejected)
+                case _:
+                    QDialog.keyPressEvent(dialog, event)
+
+        dialog.keyPressEvent = dialog_keypress
+
+        btn_yes.clicked.connect(lambda: dialog.done(QDialog.Accepted))
+        btn_no.clicked.connect(lambda: dialog.done(QDialog.Rejected))
+
+        result = dialog.exec()
+
+        if result == QDialog.Accepted:
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                QMessageBox.warning(
+                    self, "Error", f"Could not delete the file:\n{e}")
+                return
+
+            del self.folder_files[self.file_index]
+
+            if self.file_index < len(self.folder_files):
+                # Reload current index; kinda hacky
+                self.change_current_file(0)
+            elif self.file_index > 0:
+                self.file_index -= 1
+                self.change_current_file(0)
+            else:
+                # No images left, so restart as empty instance
+                self.__init__()
 
     def fit_zoom_to_height(self) -> None:
         viewport_height = self.scroll_area.viewport().height()
@@ -277,6 +343,9 @@ class Window(QMainWindow):
                 path = self.file_dialog_path()
                 if path:
                     self.load_pixmap_from_file(path)
+
+            case Qt.Key_X:
+                self.delete_file()
 
             case Qt.Key_F11:
                 if not self.isFullScreen():
