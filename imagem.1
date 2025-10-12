@@ -1,0 +1,70 @@
+.TH IMAGEM 1 2025-10-07
+
+.SH NAME
+imagem \- image viewer
+
+.SH SYNOPSIS
+.B imagem
+[\fIpath\fR]
+
+.SH DESCRIPTION
+.B imagem
+displays the image file at the given \fIpath\fR.
+If \fIpath\fR is a folder containing images, displays the first image of the folder alphanumerically.
+If no \fIpath\fR is provided, an empty \fBimagem\fR instance launches.
+
+.SH KEY BINDINGS
+
+.TP
+.BR h ", " j ", " k ", " l
+Scroll to the left, down, up or right direction
+.TP
+.BR Left ", " Down ", " Up ", " Right
+Scroll to the left, down, up or right direction
+
+.TP
+.BR + ", " - ", " =
+Zoom in, out or to the original size
+.TP
+.BR a ", " s
+Adjust zoom to image height or width
+
+.TP
+.B f
+Flip image horizontally
+.TP
+.B r
+Rotate by 90 degrees
+
+.TP
+.BR J ", " K
+Go to next or previous image inside the current folder
+
+.TP
+.B o
+Open image
+.TP
+.B x
+Delete current image
+
+.TP
+.B ^n
+Toggle statusbar
+.TP
+.B F11
+Toggle fullscreen
+
+.TP
+.B q
+Quit
+
+.SH MOUSE BINDINGS
+.TP
+.B Scroll
+Scroll up or down
+.TP
+.B ^Scroll
+Zoom in or out
+
+.SH AUTHOR
+Lucas Melo Sanginetto (lucassanginetto@protonmail.com)
