@@ -4,7 +4,7 @@ import sys
 import os
 
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QPixmap, QKeyEvent, QWheelEvent
+from PyQt5.QtGui import QPixmap, QKeyEvent, QWheelEvent, QTransform
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, QScrollArea, QFileDialog
 )
@@ -84,6 +84,14 @@ class Window(QMainWindow):
         )
         return path
 
+    def flip_pixmap(self) -> None:
+        if not self.pixmap:
+            return
+        self.pixmap = self.pixmap.transformed(
+            QTransform().scale(-1, 1)
+        )
+        self.update_pixmap_label()
+
     def load_files_from_folder(self, folder_path: str) -> None:
         files = [
             file for file in os.listdir(folder_path)
@@ -134,6 +142,14 @@ class Window(QMainWindow):
 
         self.folder_path = folder_path
         self.file_index = self.folder_files.index(file)
+
+    def rotate_pixmap(self) -> None:
+        if not self.pixmap:
+            return
+        self.pixmap = self.pixmap.transformed(
+            QTransform().rotate(90), Qt.SmoothTransformation
+        )
+        self.update_pixmap_label()
 
     def set_zoom(self, zoom: float) -> None:
         if not self.pixmap:
@@ -251,6 +267,11 @@ class Window(QMainWindow):
                 self.fit_zoom_to_height()
             case Qt.Key_S:
                 self.fit_zoom_to_width()
+
+            case Qt.Key_R:
+                self.rotate_pixmap()
+            case Qt.Key_F:
+                self.flip_pixmap()
 
             case Qt.Key_O:
                 path = self.file_dialog_path()
